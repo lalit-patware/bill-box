@@ -28,6 +28,8 @@ const en = {
   setup: 'Setup needed: add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to web/.env',
   language: 'हिंदी',
   more: 'More ways to add',
+  savedPending: 'Bill saved',
+  detailsSoon: 'Details soon',
   loadError: "Couldn't load bills. Check your connection.",
 };
 
@@ -58,6 +60,8 @@ const hi: typeof en = {
   setup: 'सेटअप ज़रूरी: web/.env में VITE_SUPABASE_URL और VITE_SUPABASE_ANON_KEY जोड़ें',
   language: 'English',
   more: 'जोड़ने के और तरीके',
+  savedPending: 'बिल सेव हो गया',
+  detailsSoon: 'जानकारी जल्द',
   loadError: 'बिल लोड नहीं हुए। फिर से कोशिश करें।',
 };
 

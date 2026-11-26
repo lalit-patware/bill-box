@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.auth import Cron, UserId
 from app.bill_service import extract_bill, poll_bill_batches, submit_bills_batch
-from app.routers.extraction import ClientDep
+from app.routers.extraction import OptionalClientDep
 from app.supa import Repo, get_repo
 
 router = APIRouter(prefix="/bills", tags=["bills"])
@@ -20,18 +20,23 @@ class BatchIn(BaseModel):
 
 
 @router.post("/{bill_id}/extract")
-def extract(bill_id: str, user_id: UserId, repo: RepoDep, client: ClientDep) -> dict[str, Any]:
+def extract(
+    bill_id: str, user_id: UserId, repo: RepoDep, client: OptionalClientDep
+) -> dict[str, Any]:
     return extract_bill(repo, client, bill_id, user_id)
 
 
 @router.post("/batch")
-def batch(body: BatchIn, user_id: UserId, repo: RepoDep, client: ClientDep) -> dict[str, Any]:
+def batch(
+    body: BatchIn, user_id: UserId, repo: RepoDep, client: OptionalClientDep
+) -> dict[str, Any]:
     if len(set(body.bill_ids)) != len(body.bill_ids):
         raise HTTPException(400, "Duplicate bill ids")
     batch_id = submit_bills_batch(repo, client, body.bill_ids, user_id)
-    return {"batch_id": batch_id, "status": "processing", "count": len(body.bill_ids)}
+    status = "processing" if batch_id else "saved_without_ai"
+    return {"batch_id": batch_id, "status": status, "count": len(body.bill_ids)}
 
 
 @router.post("/jobs/poll-batches", include_in_schema=False)
-def jobs_poll(_: Cron, repo: RepoDep, client: ClientDep) -> dict[str, Any]:
+def jobs_poll(_: Cron, repo: RepoDep, client: OptionalClientDep) -> dict[str, Any]:
     return poll_bill_batches(repo, client)

@@ -36,6 +36,17 @@ Bill & warranty vault PWA: snap any bill (printed or handwritten), auto-extract 
   → Haiku 5.5 → bill row status=done + items
 ```
 
+### Non-AI fallback
+
+The app never fails because of AI. If the key is missing, `AI_ENABLED=false`, or Anthropic errors:
+
+| Step | What happens |
+|---|---|
+| Upload | Same as normal (queue → storage → API) |
+| API | Saves the bill as `done` with `ai_pending=true`, filling vendor/date/total/bill no. from on-device GST/UPI QR data when present |
+| App | Shows "Bill saved · Details soon" |
+| Every 5 min | Supabase cron calls `/bills/jobs/poll-batches`; when AI is available it re-reads up to `REPROCESS_LIMIT` pending bills |
+
 ### Web scripts
 
 | Command | What |

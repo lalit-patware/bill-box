@@ -10,6 +10,7 @@ export interface BillRow {
   bill_date: string | null;
   total: number | null;
   needs_fix: boolean;
+  ai_pending: boolean;
   created_at: string;
 }
 
@@ -25,7 +26,7 @@ export function useRecentBills(refreshKey: number) {
     try {
       const { data, error: e } = await supabase
         .from('bills')
-        .select('id,status,bill_kind,vendor_name,bill_date,total,needs_fix,created_at')
+        .select('id,status,bill_kind,vendor_name,bill_date,total,needs_fix,ai_pending,created_at')
         .order('created_at', { ascending: false })
         .limit(30);
       setError(Boolean(e));
@@ -42,6 +43,8 @@ export function useRecentBills(refreshKey: number) {
   }, [load, refreshKey]);
 
   // Poll while any bill is still being read (batch results can take a while).
+  // "Details pending" (saved without AI) bills are re-read by the server every 5 min;
+  // no fast polling for those, they refresh on the next app open.
   const pending = bills.some((b) => b.status === 'processing' || b.status === 'uploading');
   useEffect(() => {
     if (!pending) return;
