@@ -90,7 +90,7 @@
 | 4.7 | Claim helper + **Claim pack** PDF (all pages of a hospital visit / warranty bill) | PDF downloads correctly |
 | 4.8 | Medical: consent screen on first medical bill; never extract medicines/doses | Consent stored, prompt verified |
 
-## Phase 5 — Monetization & family (Week 5)
+## Phase 5 — Monetization & family (Week 5) ✅ built (payments live once Razorpay keys are set)
 
 | # | Task | Done when |
 |---|---|---|

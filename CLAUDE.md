@@ -118,6 +118,8 @@ Database functions: `public.link_bill_vendor(bill)` (service role only: vendor m
 
 Phase 4: `public.after_bill_saved(bill)` (service role) runs after every save → vendor link, shop exchange default (`vendors.exchange_days`), `vendor_ledger` monthly sum, `reminders` (exchange 2/0 days, warranty 30/7/1, laundry pickup, vendor due; stale ones get `dismissed_at`). Hourly pg_cron `send-reminders` → API `/bills/jobs/send-reminders` → Web Push (VAPID) → email fallback (Resend, optional) → in-app "Action needed". `user_consents` holds the medical consent. Web: `/vendors` dues page (UPI deep link + mark paid), laundry "Received all N", claim text + claim-pack PDF (pdf-lib).
 
+Phase 5: quota = 5 free scans/month (IST) + bought `scan_credits`; `public.charge_scan(bill)` charges once per bill (re-reads free), out of scans → saved with QR data, `quota_blocked` + `ai_pending`, read by the cron after a purchase. `scan_charges`, `payments` (Razorpay orders; `public.apply_payment()` idempotent from /payments/verify or the webhook), `household_invites` + `accept_invite()` / `invite_info()` / `household_members()`. Plans in `api/app/plans.py` (₹10 = 25 scans, ₹99 = family 1 year, 300 scans, 6 people; free vault = 2 people). Owners can only update `households.name` (credits/plan are server-only). Web picks the household by latest `members.joined_at`.
+
 Migrations are applied to the live project via the Supabase connector and kept in `supabase/migrations/` (one file per change).
 
 ## Repo layout

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -7,6 +7,8 @@ import { toggleLanguage } from '../../i18n';
 import { enablePush, pushState, type PushState } from '../../lib/push';
 import { supabase } from '../../lib/supabase';
 import { AddSheet } from '../capture/AddSheet';
+import { UpgradeSheet } from '../plan/UpgradeSheet';
+import { usePlan } from '../plan/usePlan';
 import { useCapture } from '../capture/useCapture';
 import type { ActionItem } from './actionItems';
 import { fmtDate, inr } from './format';
@@ -24,6 +26,9 @@ export function Home() {
   const { results, searching } = useSearch(query);
   const shown = results ?? bills;
   const thumbs = useThumbnails(shown);
+  const plan = usePlan(capture.lastRun);
+  const [upgrade, setUpgrade] = useState(false);
+  const importInput = useRef<HTMLInputElement>(null);
   const [push, setPush] = useState<PushState | null>(null);
   const [pushDismissed, setPushDismissed] = useState(() => localStorage.getItem('pushAsk') === 'no');
 
@@ -41,6 +46,9 @@ export function Home() {
           <Link className="flex min-h-11 items-center" to="/vendors">
             {t('vendorsLink')}
           </Link>
+          <Link className="flex min-h-11 items-center" to="/plan">
+            {plan.view ? t('scansChip', { count: plan.view.total }) : t('planLink')}
+          </Link>
           <button className="min-h-11" onClick={toggleLanguage}>
             {t('language')}
           </button>
@@ -55,6 +63,17 @@ export function Home() {
       {capture.skipped.length > 0 && <Banner tone="red">{t('skipped', { names: capture.skipped.join(', ') })}</Banner>}
       {capture.duplicatesSkipped > 0 && (
         <Banner tone="slate">{t('duplicatesSkipped', { count: capture.duplicatesSkipped })}</Banner>
+      )}
+
+      {plan.view && (plan.blocked > 0 || plan.view.total === 0) && (
+        <div className="mb-3 flex items-center gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <span className="flex-1">
+            {plan.blocked > 0 ? t('blockedBills', { count: plan.blocked }) : t('noScansLeft')}
+          </span>
+          <button className="min-h-11 rounded-lg bg-brand px-3 font-medium text-white" onClick={() => setUpgrade(true)}>
+            {t('getScans')}
+          </button>
+        </div>
       )}
 
       {showPushAsk && (
@@ -109,7 +128,30 @@ export function Home() {
         </div>
       )}
       {!loading && error && capture.online && <Banner tone="red">{t('loadError')}</Banner>}
-      {!loading && !error && !results && bills.length === 0 && <p className="py-12 text-center text-slate-500">{t('empty')}</p>}
+      {!loading && !error && !results && bills.length === 0 && (
+        <div className="py-10 text-center">
+          <p className="mb-4 text-slate-500">{t('empty')}</p>
+          <button
+            className="min-h-12 rounded-xl border border-brand px-5 font-medium text-brand"
+            onClick={() => importInput.current?.click()}
+          >
+            🖼️ {t('importOld')}
+          </button>
+          <p className="mt-2 text-xs text-slate-400">{t('importOldNote')}</p>
+          <input
+            ref={importInput}
+            type="file"
+            accept="image/*,application/pdf"
+            multiple
+            hidden
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              e.target.value = '';
+              if (files.length) void capture.add(files, 'gallery');
+            }}
+          />
+        </div>
+      )}
       {results && results.length === 0 && <p className="py-8 text-center text-slate-500">{t('noResults')}</p>}
       <BillList bills={shown} thumbs={thumbs} />
 
@@ -145,6 +187,19 @@ export function Home() {
             secondary={{ label: t('saveAnyway'), onClick: () => void capture.saveDuplicateAnyway() }}
           />
         </Sheet>
+      )}
+
+      {upgrade && plan.household && (
+        <UpgradeSheet
+          plans={plan.plans}
+          householdId={plan.household.id}
+          onClose={() => setUpgrade(false)}
+          onPaid={() => {
+            setUpgrade(false);
+            void plan.reload();
+            window.setTimeout(() => void plan.reload(), 4000);
+          }}
+        />
       )}
 
       <AddSheet busy={capture.busy} onFiles={(files, source) => void capture.add(files, source)} />

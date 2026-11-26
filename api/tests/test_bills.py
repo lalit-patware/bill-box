@@ -42,6 +42,8 @@ class FakeRepo:
         self.exchange: dict[str, int] = {}
         self.link_fails = False
         self.products: dict[str, list] = {}
+        self.scans_left = 99  # free + credits remaining
+        self.charged: set[str] = set()
 
     def get_bill(self, bill_id: str) -> dict[str, Any] | None:
         return self.bills.get(bill_id)
@@ -65,6 +67,17 @@ class FakeRepo:
 
     def set_exchange_days(self, bill_id: str, days: int) -> None:
         self.exchange[bill_id] = days
+
+    def charge_scan(self, bill_id: str) -> str:
+        if bill_id in self.charged:
+            return "already"
+        if self.scans_left <= 0:
+            self.bills[bill_id]["quota_blocked"] = True
+            return "none"
+        self.scans_left -= 1
+        self.charged.add(bill_id)
+        self.bills[bill_id]["quota_blocked"] = False
+        return "free"
 
     def ai_pending_bills(self, limit: int) -> list[dict[str, Any]]:
         return [b for b in self.bills.values() if b.get("ai_pending")][:limit]
@@ -255,3 +268,37 @@ def test_refresh_endpoint(env) -> None:
     assert c.post("/bills/b1/refresh").status_code == 200
     assert repo.linked[-1] == "b1"
     assert c.post("/bills/b2/refresh").status_code == 404
+
+
+def test_out_of_scans_saves_with_qr_data_and_skips_model(env) -> None:
+    c, repo, fake = env
+    repo.scans_left = 0
+    r = c.post("/bills/g1/extract")
+    assert r.status_code == 200 and r.json()["quota_exhausted"] is True
+    g = repo.bills["g1"]
+    assert g["ai_pending"] is True and g["error"] == "quota_exhausted"
+    assert g["vendor_name"] == "Croma Indore"
+    assert fake.messages.calls == []
+
+
+def test_reread_same_bill_is_free(env) -> None:
+    c, repo, _ = env
+    repo.scans_left = 1
+    c.post("/bills/b1/extract")
+    c.post("/bills/b1/extract")  # "Read again": no second charge
+    assert repo.scans_left == 0 and repo.bills["b1"]["ai_pending"] is False
+
+
+def test_blocked_bill_read_after_purchase_by_cron(env) -> None:
+    c, repo, fake = env
+    repo.scans_left = 0
+    c.post("/bills/b1/extract")
+    app.dependency_overrides[current_user_id] = lambda: "cron"
+    import app.auth as auth
+
+    app.dependency_overrides[auth.require_cron] = lambda: None
+    r = c.post("/bills/jobs/poll-batches")  # still no scans → skipped
+    assert r.json()["reprocessed"] == 0 and repo.bills["b1"]["ai_pending"] is True
+    repo.scans_left = 25  # bought a pack
+    r = c.post("/bills/jobs/poll-batches")
+    assert r.json()["reprocessed"] == 1 and repo.bills["b1"]["ai_pending"] is False

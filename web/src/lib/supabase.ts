@@ -21,6 +21,11 @@ export async function accessToken(): Promise<string> {
 
 let householdCache: { userId: string; householdId: string } | null = null;
 
+/** Call after joining a family so the next upload goes to the shared vault. */
+export function resetHouseholdCache(): void {
+  householdCache = null;
+}
+
 export async function currentHouseholdId(): Promise<string> {
   const { data } = await supabase.auth.getUser();
   const userId = data.user?.id;
@@ -29,9 +34,9 @@ export async function currentHouseholdId(): Promise<string> {
 
   const { data: rows, error } = await supabase
     .from('members')
-    .select('household_id, role')
+    .select('household_id, role, joined_at')
     .eq('user_id', userId)
-    .order('role', { ascending: false }) // 'owner' before 'member'
+    .order('joined_at', { ascending: false }) // a family you joined wins over your own empty vault
     .limit(1);
   if (error) throw error;
   const householdId = rows?.[0]?.household_id as string | undefined;

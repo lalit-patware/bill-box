@@ -203,14 +203,26 @@ def _try_ai(repo: Repo, client: MessagesClient, bill: dict[str, Any]) -> Extract
         return f"ai_unavailable: {type(exc).__name__}"
 
 
+QUOTA_REASON = "quota_exhausted"
+
+
+def _has_scan(repo: Repo, bill_id: str) -> bool:
+    """Charge one scan for this bill (re-reads are free). False = out of scans."""
+    return repo.charge_scan(bill_id) != "none"
+
+
 def extract_bill(
     repo: Repo, client: MessagesClient | None, bill_id: str, user_id: str
 ) -> dict[str, Any]:
-    """Never fails the user: with AI → full read; without/failing AI → saved with QR data."""
+    """Never fails the user: with AI → full read; without/failing AI → saved with QR data.
+    Out of scans → saved with QR data and read automatically after the next purchase."""
     bill = load_bill_for_user(repo, bill_id, user_id)
     if client is None:
         bill_files(repo, bill)  # still validate the pages exist and are ours
         return save_fallback(repo, bill, "ai_disabled")
+    bill_files(repo, bill)
+    if not _has_scan(repo, bill_id):
+        return {**save_fallback(repo, bill, QUOTA_REASON), "quota_exhausted": True}
     result = _try_ai(repo, client, bill)
     if isinstance(result, str):
         return save_fallback(repo, bill, result)
@@ -225,6 +237,17 @@ def submit_bills_batch(
         for b in bills:
             save_fallback(repo, b, "ai_disabled")
         return None
+    for b in bills:
+        bill_files(repo, b)
+    paid: list[dict[str, Any]] = []
+    for b in bills:
+        if _has_scan(repo, b["id"]):
+            paid.append(b)
+        else:
+            save_fallback(repo, b, QUOTA_REASON)
+    if not paid:
+        return None
+    bills, bill_ids = paid, [b["id"] for b in paid]
     jobs = [(b["id"], bill_files(repo, b), b.get("hints")) for b in bills]
     try:
         batch_id = submit_batch(jobs, client)
@@ -272,6 +295,8 @@ def poll_bill_batches(repo: Repo, client: MessagesClient | None) -> dict[str, An
         # Phase 4: Web Push "N bills are ready".
 
     for bill in repo.ai_pending_bills(get_settings().reprocess_limit):
+        if not _has_scan(repo, bill["id"]):
+            continue  # waiting for the household to buy scans
         try:
             result = _try_ai(repo, client, bill)
         except HTTPException as exc:  # broken pages: stop retrying this bill
