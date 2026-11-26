@@ -116,6 +116,8 @@ Row Level Security: every table scoped by `household_id` through `members` (`pri
 
 Database functions: `public.link_bill_vendor(bill)` (service role only: vendor match by phone → UPI VPA → name similarity, sets `duplicate_of`), `public.search_bills(words, kinds, month, year)` (security invoker, RLS applies). Scheduled job `poll-bill-batches` (pg_cron, every 5 min) calls the API to collect batches and re-read `ai_pending` bills.
 
+Phase 4: `public.after_bill_saved(bill)` (service role) runs after every save → vendor link, shop exchange default (`vendors.exchange_days`), `vendor_ledger` monthly sum, `reminders` (exchange 2/0 days, warranty 30/7/1, laundry pickup, vendor due; stale ones get `dismissed_at`). Hourly pg_cron `send-reminders` → API `/bills/jobs/send-reminders` → Web Push (VAPID) → email fallback (Resend, optional) → in-app "Action needed". `user_consents` holds the medical consent. Web: `/vendors` dues page (UPI deep link + mark paid), laundry "Received all N", claim text + claim-pack PDF (pdf-lib).
+
 Migrations are applied to the live project via the Supabase connector and kept in `supabase/migrations/` (one file per change).
 
 ## Repo layout

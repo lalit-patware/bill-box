@@ -31,6 +31,14 @@ class Settings(BaseSettings):
     supabase_jwt_secret: str = ""
     supabase_jwt_audience: str = "authenticated"
 
+    # Web Push (VAPID). Public key also goes to the PWA as VITE_VAPID_PUBLIC_KEY.
+    vapid_private_key: str = ""
+    vapid_subject: str = "mailto:lalit.patware@gmail.com"
+    # Optional email fallback for reminders (Resend). Empty = push + in-app only.
+    resend_api_key: str = ""
+    resend_from: str = ""
+    app_url: str = "https://bill-box-web.vercel.app"
+
     # Shared secret for cron-triggered job endpoints (X-Cron-Secret header).
     cron_secret: str = ""
     # Comma-separated origins allowed to call the API from a browser.

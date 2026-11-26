@@ -39,6 +39,7 @@ class FakeRepo:
         self.members = {(HH, "user-a")}
         self.items: dict[str, list] = {}
         self.linked: list[str] = []
+        self.exchange: dict[str, int] = {}
         self.link_fails = False
         self.products: dict[str, list] = {}
 
@@ -57,11 +58,13 @@ class FakeRepo:
     def replace_children(self, bill_id: str, items: list, products: list) -> None:
         self.items[bill_id], self.products[bill_id] = items, products
 
-    def link_vendor(self, bill_id: str) -> str | None:
+    def after_saved(self, bill_id: str) -> None:
         self.linked.append(bill_id)
         if self.link_fails:
             raise RuntimeError("rpc down")
-        return "vendor-1"
+
+    def set_exchange_days(self, bill_id: str, days: int) -> None:
+        self.exchange[bill_id] = days
 
     def ai_pending_bills(self, limit: int) -> list[dict[str, Any]]:
         return [b for b in self.bills.values() if b.get("ai_pending")][:limit]
@@ -221,15 +224,22 @@ def test_add_months_clamps() -> None:
     assert _add_months(date(2026, 11, 15), 24) == date(2028, 11, 15)
 
 
-def test_vendor_linked_after_ai_and_qr_fallback(env) -> None:
+def test_after_saved_runs_for_ai_and_fallback_saves(env) -> None:
     c, repo, fake = env
     c.post("/bills/b1/extract")
     assert repo.linked == ["b1"]
     app.dependency_overrides[optional_client_dep] = lambda: None
-    c.post("/bills/g1/extract")  # fallback with UPI vendor name → linked
-    assert repo.linked == ["b1", "g1"]
-    c.post("/bills/b1/extract")  # fallback without any vendor → not linked
-    assert repo.linked == ["b1", "g1"]
+    c.post("/bills/g1/extract")
+    c.post("/bills/b1/extract")  # fallback still schedules reminders etc.
+    assert repo.linked == ["b1", "g1", "b1"]
+
+
+def test_exchange_days_endpoint(env) -> None:
+    c, repo, _ = env
+    assert c.post("/bills/b1/exchange-days", json={"days": 7}).status_code == 200
+    assert repo.exchange == {"b1": 7}
+    assert c.post("/bills/b2/exchange-days", json={"days": 7}).status_code == 404
+    assert c.post("/bills/b1/exchange-days", json={"days": 999}).status_code == 422
 
 
 def test_link_failure_does_not_fail_save(env) -> None:
@@ -238,3 +248,10 @@ def test_link_failure_does_not_fail_save(env) -> None:
     assert c.post("/bills/b1/extract").status_code == 200
     assert repo.bills["b1"]["status"] == "done"
     assert repo.bills["b1"]["confirmed_at"] is None
+
+
+def test_refresh_endpoint(env) -> None:
+    c, repo, _ = env
+    assert c.post("/bills/b1/refresh").status_code == 200
+    assert repo.linked[-1] == "b1"
+    assert c.post("/bills/b2/refresh").status_code == 404

@@ -2,7 +2,15 @@ import { useEffect, useState } from 'react';
 
 import { isEmptyQuery, parseQuery } from '../../lib/searchQuery';
 import { BUCKET, supabase } from '../../lib/supabase';
-import { type ActionBill, type ActionItem, type ActionProduct, buildActionItems } from './actionItems';
+import { type LedgerRow, openDues, type VendorRow } from '../vendors/ledger';
+import {
+  type ActionBill,
+  type ActionDue,
+  type ActionItem,
+  type ActionLaundry,
+  type ActionProduct,
+  buildActionItems,
+} from './actionItems';
 import type { BillRow } from './useRecentBills';
 
 /** Search via the search_bills() database function (row level security applies). */
@@ -49,7 +57,8 @@ export function useActionItems(refreshKey: number): ActionItem[] {
     void (async () => {
       try {
         const today = new Date().toISOString().slice(0, 10);
-        const [billsRes, productsRes] = await Promise.all([
+        const since = new Date(Date.now() - 60 * 86_400_000).toISOString();
+        const [billsRes, productsRes, ledgerRes, vendorsRes, laundryRes] = await Promise.all([
           supabase
             .from('bills')
             .select('id,vendor_name,needs_fix,ai_pending,confirmed_at,duplicate_of,status')
@@ -62,7 +71,27 @@ export function useActionItems(refreshKey: number): ActionItem[] {
             .select('bill_id,name,warranty_until,exchange_until,bills(vendor_name)')
             .or(`exchange_until.gte.${today},warranty_until.gte.${today}`)
             .limit(50),
+          supabase.from('vendor_ledger').select('*').order('month', { ascending: false }).limit(100),
+          supabase.from('vendors').select('id,name,phone,upi_vpa,category,is_recurring').eq('is_recurring', true),
+          supabase
+            .from('bills')
+            .select('id,vendor_name,created_at,pieces:raw_extraction->piece_count->>value')
+            .eq('bill_kind', 'laundry')
+            .eq('status', 'done')
+            .is('laundry_received_at', null)
+            .is('duplicate_of', null)
+            .gte('created_at', since)
+            .limit(20),
         ]);
+        const dues: ActionDue[] = openDues(
+          (vendorsRes.data ?? []) as VendorRow[],
+          (ledgerRes.data ?? []) as LedgerRow[],
+        ).map((d) => ({ vendorId: d.vendor.id, name: d.vendor.name, balance: d.balance }));
+        type LaundryRow = { id: string; vendor_name: string | null; created_at: string; pieces: string | null };
+        const laundry: ActionLaundry[] = ((laundryRes.data ?? []) as unknown as LaundryRow[]).map((l) => ({
+          ...l,
+          pieces: l.pieces == null ? null : Number(l.pieces),
+        }));
         type ProductRow = Omit<ActionProduct, 'vendor_name'> & {
           bills: { vendor_name: string | null } | null;
         };
@@ -74,7 +103,7 @@ export function useActionItems(refreshKey: number): ActionItem[] {
           vendor_name: p.bills?.vendor_name ?? null,
         }));
         if (!cancelled) {
-          setItems(buildActionItems((billsRes.data ?? []) as ActionBill[], products, new Date()));
+          setItems(buildActionItems((billsRes.data ?? []) as ActionBill[], products, new Date(), dues, laundry));
         }
       } catch {
         // Offline: no action block rather than an error.

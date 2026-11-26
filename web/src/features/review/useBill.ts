@@ -26,6 +26,7 @@ export interface BillDetailRow {
   total_mismatch: boolean;
   ai_pending: boolean;
   confirmed_at: string | null;
+  laundry_received_at?: string | null;
   duplicate_of: string | null;
   page_paths: string[];
   validation: Validation | null;

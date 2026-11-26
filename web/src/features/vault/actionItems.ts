@@ -23,7 +23,22 @@ export type ActionItem =
   | { kind: 'warranty'; billId: string; label: string; days: number }
   | { kind: 'fix'; billId: string; label: string }
   | { kind: 'duplicate'; billId: string; label: string }
-  | { kind: 'pending'; count: number };
+  | { kind: 'pending'; count: number }
+  | { kind: 'due'; vendorId: string; label: string; amount: number }
+  | { kind: 'laundry'; billId: string; label: string; pieces: number | null; since: string };
+
+export interface ActionDue {
+  vendorId: string;
+  name: string;
+  balance: number;
+}
+
+export interface ActionLaundry {
+  id: string;
+  vendor_name: string | null;
+  created_at: string;
+  pieces: number | null;
+}
 
 export const EXCHANGE_WINDOW_DAYS = 7;
 export const WARRANTY_WINDOW_DAYS = 30;
@@ -38,6 +53,8 @@ export function buildActionItems(
   bills: ActionBill[],
   products: ActionProduct[],
   today: Date,
+  dues: ActionDue[] = [],
+  laundry: ActionLaundry[] = [],
 ): ActionItem[] {
   const items: ActionItem[] = [];
 
@@ -58,6 +75,13 @@ export function buildActionItems(
   }
   // Soonest deadlines first.
   items.sort((a, b) => ('days' in a ? a.days : 99) - ('days' in b ? b.days : 99));
+
+  for (const l of laundry) {
+    items.push({ kind: 'laundry', billId: l.id, label: l.vendor_name ?? '—', pieces: l.pieces, since: l.created_at });
+  }
+  for (const d of dues) {
+    if (d.balance > 0) items.push({ kind: 'due', vendorId: d.vendorId, label: d.name, amount: d.balance });
+  }
 
   for (const b of bills) {
     if (b.status !== 'done' || b.confirmed_at) continue;

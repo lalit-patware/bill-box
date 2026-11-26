@@ -30,4 +30,9 @@ export const api = {
   extractBill: (billId: string) => post<Record<string, unknown>>(`/bills/${billId}/extract`),
   batchBills: (billIds: string[]) =>
     post<{ batch_id: string; count: number }>('/bills/batch', { bill_ids: billIds }),
+  /** Re-run vendor link, ledger and reminders after the user fixes a field. */
+  refreshBill: (billId: string) => post<{ ok: boolean }>(`/bills/${billId}/refresh`),
+  /** Shop's exchange window; remembered for that shop's next bills. */
+  setExchangeDays: (billId: string, days: number) =>
+    post<{ ok: boolean }>(`/bills/${billId}/exchange-days`, { days }),
 };

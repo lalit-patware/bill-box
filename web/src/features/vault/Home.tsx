@@ -1,14 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { brand } from '../../config/brand';
 import { toggleLanguage } from '../../i18n';
+import { enablePush, pushState, type PushState } from '../../lib/push';
 import { supabase } from '../../lib/supabase';
 import { AddSheet } from '../capture/AddSheet';
 import { useCapture } from '../capture/useCapture';
 import type { ActionItem } from './actionItems';
-import { fmtDate } from './format';
+import { fmtDate, inr } from './format';
 import { Banner, BillList, Sheet, SheetButtons, Spinner } from './ui';
 import { useRecentBills } from './useRecentBills';
 import { useActionItems, useSearch, useThumbnails } from './useVaultData';
@@ -23,12 +24,23 @@ export function Home() {
   const { results, searching } = useSearch(query);
   const shown = results ?? bills;
   const thumbs = useThumbnails(shown);
+  const [push, setPush] = useState<PushState | null>(null);
+  const [pushDismissed, setPushDismissed] = useState(() => localStorage.getItem('pushAsk') === 'no');
+
+  useEffect(() => {
+    void pushState().then(setPush);
+  }, []);
+  // Ask for reminders once the user has something worth reminding about.
+  const showPushAsk = push === 'off' && !pushDismissed && bills.length > 0;
 
   return (
     <main className="mx-auto min-h-screen max-w-xl px-4 pt-4 pb-32">
       <header className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">{brand.name}</h1>
         <div className="flex gap-3 text-sm text-slate-500">
+          <Link className="flex min-h-11 items-center" to="/vendors">
+            {t('vendorsLink')}
+          </Link>
           <button className="min-h-11" onClick={toggleLanguage}>
             {t('language')}
           </button>
@@ -43,6 +55,29 @@ export function Home() {
       {capture.skipped.length > 0 && <Banner tone="red">{t('skipped', { names: capture.skipped.join(', ') })}</Banner>}
       {capture.duplicatesSkipped > 0 && (
         <Banner tone="slate">{t('duplicatesSkipped', { count: capture.duplicatesSkipped })}</Banner>
+      )}
+
+      {showPushAsk && (
+        <div className="mb-3 flex items-center gap-3 rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-900">
+          <span className="flex-1">🔔 {t('pushAsk')}</span>
+          <button className="min-h-11 rounded-lg bg-brand px-3 font-medium text-white" onClick={() => void enablePush().then(setPush)}>
+            {t('pushOn')}
+          </button>
+          <button
+            className="min-h-11 px-1 text-sky-700"
+            aria-label={t('close')}
+            onClick={() => {
+              setPushDismissed(true);
+              try {
+                localStorage.setItem('pushAsk', 'no');
+              } catch {
+                // ignore
+              }
+            }}
+          >
+            ×
+          </button>
+        </div>
       )}
 
       {/* 1 · Action needed */}
@@ -130,14 +165,24 @@ function ActionNeeded({ items }: { items: ActionItem[] }) {
                 <span aria-hidden>⏳</span>
                 {t('pendingCount', { count: it.count })}
               </p>
+            ) : it.kind === 'due' ? (
+              <Link to="/vendors" className="flex min-h-11 items-center gap-2 rounded-lg px-1 text-sm active:bg-amber-100">
+                <span aria-hidden>💰</span>
+                <span className="flex-1">{t('vendorDue', { name: it.label, amount: inr(it.amount) })}</span>
+                <span className="text-slate-400">›</span>
+              </Link>
             ) : (
               <Link to={`/bill/${it.billId}`} className="flex min-h-11 items-center gap-2 rounded-lg px-1 text-sm active:bg-amber-100">
-                <span aria-hidden>{{ exchange: '🔁', warranty: '🛡️', fix: '✏️', duplicate: '⧉' }[it.kind]}</span>
+                <span aria-hidden>{{ exchange: '🔁', warranty: '🛡️', fix: '✏️', duplicate: '⧉', laundry: '🧺' }[it.kind]}</span>
                 <span className="flex-1">
                   {it.kind === 'exchange' && t('exchangeEnds', { name: it.label, count: it.days })}
                   {it.kind === 'warranty' && t('warrantyEnds', { name: it.label, count: it.days })}
                   {it.kind === 'fix' && t('checkDetails', { name: it.label })}
                   {it.kind === 'duplicate' && t('possibleDuplicate', { name: it.label })}
+                  {it.kind === 'laundry' &&
+                    (it.pieces
+                      ? t('laundryPending', { count: it.pieces, date: fmtDate(it.since) })
+                      : t('laundryPendingNoCount', { date: fmtDate(it.since) }))}
                 </span>
                 <span className="text-slate-400">›</span>
               </Link>

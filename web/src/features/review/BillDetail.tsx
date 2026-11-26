@@ -8,6 +8,7 @@ import { BUCKET, supabase } from '../../lib/supabase';
 import { decodeImage, toUploadJpeg } from '../capture/preprocess';
 import { fmtDate, inr, KIND_ICON } from '../vault/format';
 import { Banner, Chip, Sheet, SheetButtons, Spinner } from '../vault/ui';
+import { ClaimCard, ExchangeDaysCard, LaundryCard, MedicalConsent } from './BillExtras';
 import { afterEdit, type BillDetailRow, type EditableField, openPdf, usePageImages, useBill } from './useBill';
 
 type Busy = null | 'confirm' | 'reread' | 'page' | 'delete' | 'save';
@@ -78,6 +79,8 @@ export function BillDetail() {
       if (field === 'total' && value !== null && Number.isNaN(value)) throw new Error('bad number');
       await update({ [field]: value, ...afterEdit(bill, field) } as Partial<BillDetailRow>);
       setEditing(null);
+      // Ledger + reminders follow the corrected total/date (best effort).
+      await api.refreshBill(bill.id).catch(() => undefined);
     });
 
   const addPage = (file: File | undefined) => {
@@ -265,6 +268,11 @@ export function BillDetail() {
           </ul>
         </section>
       )}
+
+      <LaundryCard bill={bill} canWrite={canWrite} onDone={() => void reload()} />
+      <ExchangeDaysCard bill={bill} products={products} canWrite={canWrite} onDone={() => void reload()} />
+      <ClaimCard bill={bill} products={products} />
+      <MedicalConsent bill={bill} onDecline={() => setAskDelete(true)} />
 
       {/* Actions */}
       <div className="mt-6 flex flex-col gap-3">
