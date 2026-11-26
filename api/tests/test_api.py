@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from app.auth import current_user_id
 from app.main import app
 from app.routers.extraction import client_dep
 from tests.conftest import LAUNDRY, FakeClient, tool_message
@@ -7,6 +8,7 @@ from tests.conftest import LAUNDRY, FakeClient, tool_message
 
 def make(client: FakeClient) -> TestClient:
     app.dependency_overrides[client_dep] = lambda: client
+    app.dependency_overrides[current_user_id] = lambda: "user-a"
     return TestClient(app)
 
 
@@ -50,3 +52,20 @@ def test_batch_flow() -> None:
     assert body["status"] == "processing" and len(body["custom_ids"]) == 2
     assert c.get(f"/batch/{body['batch_id']}").json()["status"] == "in_progress"
     assert c.get("/batch/unknown").status_code == 404
+
+
+def test_extract_requires_login() -> None:
+    app.dependency_overrides[client_dep] = lambda: FakeClient(tool_message(LAUNDRY))
+    r = TestClient(app).post("/extract", files=[jpg()])
+    assert r.status_code == 401
+
+
+def test_jobs_require_cron_secret(monkeypatch) -> None:
+    from app.config import get_settings
+
+    monkeypatch.setenv("CRON_SECRET", "s3cret")
+    get_settings.cache_clear()
+    c = make(FakeClient())
+    assert c.post("/jobs/poll-batches").status_code == 401
+    assert c.post("/jobs/poll-batches", headers={"X-Cron-Secret": "nope"}).status_code == 401
+    assert c.post("/jobs/poll-batches", headers={"X-Cron-Secret": "s3cret"}).status_code == 200

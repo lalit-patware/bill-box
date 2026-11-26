@@ -1,7 +1,6 @@
-"""Extraction endpoints.
+"""Direct-upload extraction endpoints (dev/testing). The PWA uses /bills/* instead.
 
-Auth, quotas and rate limits arrive in Phase 2/5/6 (Supabase JWT); until then this
-API is for local development only — do not deploy it publicly.
+Both require a signed-in user; quotas and rate limits arrive in Phases 5–6.
 """
 
 import json
@@ -10,6 +9,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
+from app.auth import Cron, UserId
 from app.config import Settings, get_settings
 from app.jobs.poll_batches import poll_batches
 from app.llm.extractor import (
@@ -74,6 +74,7 @@ def _parse_hints(hints: str | None) -> dict[str, Any] | None:
 
 @router.post("/extract", response_model=ExtractResult)
 async def extract(
+    _user: UserId,
     client: ClientDep,
     settings: SettingsDep,
     files: Annotated[list[UploadFile], File(description="Pages of ONE bill")],
@@ -92,6 +93,7 @@ async def extract(
 
 @router.post("/batch")
 async def batch(
+    _user: UserId,
     client: ClientDep,
     store: StoreDep,
     settings: SettingsDep,
@@ -106,7 +108,7 @@ async def batch(
 
 
 @router.get("/batch/{batch_id}")
-def batch_get(batch_id: str, store: StoreDep) -> dict[str, Any]:
+def batch_get(batch_id: str, _user: UserId, store: StoreDep) -> dict[str, Any]:
     entry = store.get(batch_id)
     if entry is None:
         raise HTTPException(404, "Unknown batch")
@@ -114,5 +116,5 @@ def batch_get(batch_id: str, store: StoreDep) -> dict[str, Any]:
 
 
 @router.post("/jobs/poll-batches")
-def jobs_poll_batches(client: ClientDep, store: StoreDep) -> dict[str, Any]:
+def jobs_poll_batches(_: Cron, client: ClientDep, store: StoreDep) -> dict[str, Any]:
     return poll_batches(store, client)

@@ -23,9 +23,11 @@ api/tests/fixtures/bills/**/*.webp
 api/tests/fixtures/bills/**/*.heic
 api/tests/fixtures/bills/**/*.pdf
 
-# Node (Phase 2)
+# Node
 node_modules/
 dist/
+dev-dist/
+*.tsbuildinfo
 
 # OS
 .DS_Store
