@@ -18,6 +18,7 @@ export interface QueueDeps {
     status: 'uploading';
     source: QueuedBill['source'];
     hints: CodeHints | null;
+    image_hash: string | null;
   }): Promise<void>;
   uploadPage(path: string, page: Blob): Promise<void>;
   markProcessing(billId: string, pagePaths: string[]): Promise<void>;
@@ -68,6 +69,7 @@ async function upload(item: QueuedBill, deps: QueueDeps): Promise<void> {
     status: 'uploading',
     source: item.source,
     hints: item.hints,
+    image_hash: item.imageHash ?? null,
   });
   const paths = pagePaths(householdId, item);
   for (const [i, page] of item.pages.entries()) await deps.uploadPage(paths[i]!, page);

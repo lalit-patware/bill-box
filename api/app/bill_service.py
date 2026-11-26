@@ -165,16 +165,29 @@ def fallback_fields(bill: dict[str, Any], reason: str) -> dict[str, Any]:
     }
 
 
+def _link_vendor(repo: Repo, bill_id: str) -> None:
+    """Best effort: a vendor-linking hiccup must never fail saving the bill."""
+    try:
+        repo.link_vendor(bill_id)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("link_vendor failed for bill %s: %s", bill_id, type(exc).__name__)
+
+
 def save_fallback(repo: Repo, bill: dict[str, Any], reason: str) -> dict[str, Any]:
     fields = fallback_fields(bill, reason)
     repo.update_bill(bill["id"], fields)
+    if fields.get("vendor_name"):
+        _link_vendor(repo, bill["id"])
     return fields
 
 
 def save_result(repo: Repo, bill_id: str, result: ExtractResult) -> dict[str, Any]:
     fields, items, products = result_to_rows(result, bill_id)
     repo.replace_children(bill_id, items, products)
+    # A fresh read means the user should look again; clear any earlier confirmation.
+    fields["confirmed_at"] = None
     repo.update_bill(bill_id, fields)
+    _link_vendor(repo, bill_id)
     return fields
 
 

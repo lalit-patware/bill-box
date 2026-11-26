@@ -7,6 +7,7 @@ export const brand = {
   shortName: 'BillBox',
   tagline: 'Snap any bill. Never lose it.',
   taglineHi: 'Har bill, sambhal ke.',
+  supportEmail: 'lalit.patware@gmail.com', // shown on privacy/terms; swap for a support@ domain later
   themeColor: '#0f766e',
   backgroundColor: '#ffffff',
 } as const;

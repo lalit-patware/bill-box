@@ -82,7 +82,7 @@ Vendor matching: link a new bill to an existing vendor by phone → UPI VPA → 
    - Every field returns `{value, confidence}`.
    - Prompt must handle: Hinglish abbreviations ("1 kg - 60", "dudh 2L"), missing dates, carbon copies, crossed-out lines, monthly milk tallies (date grid of litres).
 4. **Validation**: recompute `sum(items.amount)` and `qty × rate`; set `total_mismatch` flag if off by > ₹1.
-5. **Auto-save**: no manual entry form anywhere in the app. Bill saves automatically after extraction; a card shows the result with a single "Looks right ✓" tap. Only fields with confidence < 0.7 or `total_mismatch` show a "Fix" chip (tap → Haiku re-reads a higher-resolution crop of that area, or user edits that one field).
+5. **Auto-save**: no manual entry form anywhere in the app (users may correct a single field on the bill screen). Bill saves automatically after extraction; a card shows the result with a single "Looks right ✓" tap. Only fields with confidence < 0.7 or `total_mismatch` show a "Fix" chip (tap → Haiku re-reads a higher-resolution crop of that area, or user edits that one field).
 
 **Cost routing (every bill is photo/scan only, Haiku 5.5 only):**
 
@@ -102,17 +102,21 @@ Vendor matching: link a new bill to an existing vendor by phone → UPI VPA → 
 
 | Table | Key columns |
 |---|---|
-| `households` | id, name, owner_id, plan |
+| `households` | id, name, owner_id, plan, scan_credits |
 | `members` | household_id, user_id, role |
 | `vendors` | id, household_id, name, phone, upi_vpa, category (milk, textile, electronics…), is_recurring |
-| `bills` | id, household_id, vendor_id, bill_date, bill_no, total, tax, type, is_handwritten, total_mismatch, image_path, raw_extraction (jsonb), status |
+| `bills` | id, household_id, created_by, vendor_id, status (uploading/processing/done/failed), source, page_paths (text[]), hints (jsonb, on-device QR data), bill_kind, vendor_name, bill_date, bill_no, total, tax, is_handwritten, total_mismatch, needs_fix, ai_pending, raw_extraction (jsonb), validation (jsonb), prompt_version, cost_inr, batch_id, image_hash (dHash), duplicate_of, confirmed_at, error |
 | `bill_items` | id, bill_id, name, qty, unit, rate, amount |
 | `products` | id, bill_id, name, brand, model, serial_no, product_barcode, warranty_until, exchange_until |
 | `vendor_ledger` | id, vendor_id, month, amount_due, amount_paid, paid_on |
 | `reminders` | id, household_id, ref_type, ref_id, remind_at, channel, sent_at |
 | `push_subscriptions` | user_id, endpoint, keys (jsonb) |
 
-Row Level Security: every table scoped by `household_id` through `members`.
+Row Level Security: every table scoped by `household_id` through `members` (`private.is_member()`).
+
+Database functions: `public.link_bill_vendor(bill)` (service role only: vendor match by phone → UPI VPA → name similarity, sets `duplicate_of`), `public.search_bills(words, kinds, month, year)` (security invoker, RLS applies). Scheduled job `poll-bill-batches` (pg_cron, every 5 min) calls the API to collect batches and re-read `ai_pending` bills.
+
+Migrations are applied to the live project via the Supabase connector and kept in `supabase/migrations/` (one file per change).
 
 ## Repo layout
 
