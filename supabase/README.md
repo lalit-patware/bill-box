@@ -7,6 +7,7 @@
    `supabase link --project-ref <ref> && supabase db push`.
    - `…01_init.sql`: tables, RLS, signup trigger, private `bills` bucket
    - `…02_hardening.sql`: advisor fixes (helper functions moved to a non-exposed `private` schema, `pg_trgm` → `extensions`, `(select auth.uid())` in policies, FK indexes)
+   - `…03_batch_poll_cron.sql`: pg_cron job every 5 min → API `/bills/jobs/poll-batches` (needs Vault secrets `api_url`, `cron_secret`)
 3. Check RLS isolation (local CLI stack or a scratch project):
    `psql "$DB_URL" -f tests/rls_test.sql` → should print `RLS isolation OK`.
 

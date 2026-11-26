@@ -5,6 +5,17 @@ Bill & warranty vault PWA: snap any bill (printed or handwritten), auto-extract 
 - Product scope, stack and conventions: [CLAUDE.md](CLAUDE.md)
 - Phased build plan: [PLAN.md](PLAN.md)
 
+## Hosting
+
+| Part | Where | Notes |
+|---|---|---|
+| PWA (`web/`) | Vercel project `bill-box-web` | Static build, `web/vercel.json` |
+| API (`api/`) | Vercel project `bill-box-api`, region **bom1 (Mumbai)** | FastAPI on Vercel Functions, entrypoint `app.main:app` |
+| DB / Auth / Storage | Supabase `bill-box`, Mumbai | Migrations in `supabase/migrations/` |
+| Batch poll (every 5 min) | Supabase pg_cron + pg_net | Vercel Hobby cron is daily-only |
+
+> Vercel Hobby is for non-commercial use. Move to Pro before charging users (Phase 5).
+
 ## Quick start (Phase 2)
 
 | Step | Command / action |
