@@ -8,6 +8,8 @@
    - `…01_init.sql`: tables, RLS, signup trigger, private `bills` bucket
    - `…02_hardening.sql`: advisor fixes (helper functions moved to a non-exposed `private` schema, `pg_trgm` → `extensions`, `(select auth.uid())` in policies, FK indexes)
    - `…03_batch_poll_cron.sql`: pg_cron job every 5 min → API `/bills/jobs/poll-batches` (needs Vault secrets `api_url`, `cron_secret`)
+   - `…04_non_ai_fallback.sql`: `bills.ai_pending` + cron also runs while bills await an AI re-read
+   - `…05_pg_net_schema.sql`: move `pg_net` out of `public` (advisor fix)
 3. Check RLS isolation (local CLI stack or a scratch project):
    `psql "$DB_URL" -f tests/rls_test.sql` → should print `RLS isolation OK`.
 
@@ -39,6 +41,6 @@ The migration creates a **private** bucket `bills` (5 MB/file, JPEG/PNG/WebP/PDF
 | Item | Value |
 |---|---|
 | Project | `bill-box`, ref `smwwswtjetnlmdbsnsoh`, region ap-south-1 (Mumbai) |
-| Migrations applied | `init`, `hardening` (26 Nov 2026) |
+| Migrations applied | 01 `init`, 02 `hardening`, 03 `batch_poll_cron`, 04 `non_ai_fallback`. **05 pending** (needs your confirmation; it recreates `pg_net`) |
 | RLS isolation test | Passed |
 | Security advisor | Clean except `public.rls_auto_enable()`, which Supabase creates for the "Enable RLS on new tables automatically" setting (not ours) |

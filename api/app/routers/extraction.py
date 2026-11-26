@@ -33,11 +33,19 @@ def client_dep() -> MessagesClient:
         raise HTTPException(503, str(exc)) from exc
 
 
+def optional_client_dep() -> MessagesClient | None:
+    """None when AI is off or unconfigured → callers fall back to non-AI mode."""
+    from app.config import ai_available
+
+    return get_client() if ai_available() else None
+
+
 def store_dep() -> BatchStore:
     return BatchStore()
 
 
 ClientDep = Annotated[MessagesClient, Depends(client_dep)]
+OptionalClientDep = Annotated[MessagesClient | None, Depends(optional_client_dep)]
 StoreDep = Annotated[BatchStore, Depends(store_dep)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 

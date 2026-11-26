@@ -31,6 +31,7 @@ class Repo(Protocol):
         self, bill_id: str, items: list[dict[str, Any]], products: list[dict[str, Any]]
     ) -> None: ...
     def processing_batches(self) -> dict[str, list[str]]: ...
+    def ai_pending_bills(self, limit: int) -> list[dict[str, Any]]: ...
 
 
 class SupabaseRepo:
@@ -90,6 +91,17 @@ class SupabaseRepo:
         for row in rows:
             out.setdefault(row["batch_id"], []).append(row["id"])
         return out
+
+    def ai_pending_bills(self, limit: int) -> list[dict[str, Any]]:
+        return self._select(
+            "bills",
+            {
+                "ai_pending": "is.true",
+                "select": "id,household_id,page_paths,hints",
+                "order": "created_at.asc",
+                "limit": str(limit),
+            },
+        )
 
     # Storage -------------------------------------------------------------
     def download(self, path: str) -> bytes:

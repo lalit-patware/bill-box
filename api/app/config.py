@@ -7,6 +7,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     anthropic_api_key: str = ""
+    # Kill switch: false = never call the model; bills are saved with QR/barcode data only
+    # and re-read automatically once AI is back.
+    ai_enabled: bool = True
+    # Max "details pending" bills re-read per cron run (keeps each function call short).
+    reprocess_limit: int = 5
     anthropic_model: str = "claude-haiku-5-5"
     max_output_tokens: int = 2048
 
@@ -36,6 +41,11 @@ class Settings(BaseSettings):
     price_output_per_mtok: float = 0.50
     batch_discount: float = 0.5
     usd_to_inr: float = 88.0
+
+
+def ai_available(settings: "Settings | None" = None) -> bool:
+    s = settings or get_settings()
+    return s.ai_enabled and bool(s.anthropic_api_key)
 
 
 @lru_cache

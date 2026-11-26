@@ -105,7 +105,11 @@ function BillItem({ bill }: { bill: BillRow }) {
   const { t } = useTranslation();
   const icon = KIND_ICON[bill.bill_kind ?? ''] ?? '🧾';
   const title =
-    bill.status === 'done' ? (bill.vendor_name ?? '—') : bill.status === 'failed' ? t('failed') : t('processing');
+    bill.status === 'done'
+      ? (bill.vendor_name ?? (bill.ai_pending ? t('savedPending') : '—'))
+      : bill.status === 'failed'
+        ? t('failed')
+        : t('processing');
   return (
     <li className="flex min-h-16 items-center gap-3 py-3">
       <span className="text-2xl" aria-hidden>
@@ -115,7 +119,12 @@ function BillItem({ bill }: { bill: BillRow }) {
         <p className={`truncate font-medium ${bill.status === 'failed' ? 'text-red-600' : ''}`}>{title}</p>
         <p className="text-sm text-slate-500">
           {fmtDate(bill.bill_date ?? bill.created_at)}
-          {bill.needs_fix && <span className="ml-2 rounded bg-amber-100 px-1.5 text-amber-800">Fix</span>}
+          {bill.ai_pending && (
+            <span className="ml-2 rounded bg-sky-100 px-1.5 text-sky-800">{t('detailsSoon')}</span>
+          )}
+          {bill.needs_fix && !bill.ai_pending && (
+            <span className="ml-2 rounded bg-amber-100 px-1.5 text-amber-800">Fix</span>
+          )}
         </p>
       </div>
       {bill.status === 'done' && bill.total != null && (
