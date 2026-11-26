@@ -7,6 +7,7 @@ import { SharePage } from './features/capture/SharePage';
 import { Privacy, Terms } from './features/legal/Legal';
 import { BillDetail } from './features/review/BillDetail';
 import { Home } from './features/vault/Home';
+import { Vendors } from './features/vendors/Vendors';
 import { Spinner } from './features/vault/ui';
 import { isConfigured } from './lib/env';
 
@@ -44,6 +45,7 @@ function SignedIn() {
       <Route path="/" element={<Home />} />
       <Route path="/bill/:id" element={<BillDetail />} />
       <Route path="/share" element={<SharePage />} />
+      <Route path="/vendors" element={<Vendors />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

@@ -4,6 +4,7 @@ The service role bypasses RLS, so every caller MUST check membership first
 (`is_member`) before reading or writing a household's data.
 """
 
+from datetime import UTC, datetime
 from typing import Any, Protocol
 
 import httpx
@@ -32,7 +33,12 @@ class Repo(Protocol):
     ) -> None: ...
     def processing_batches(self) -> dict[str, list[str]]: ...
     def ai_pending_bills(self, limit: int) -> list[dict[str, Any]]: ...
-    def link_vendor(self, bill_id: str) -> str | None: ...
+    def after_saved(self, bill_id: str) -> None: ...
+    def set_exchange_days(self, bill_id: str, days: int) -> None: ...
+    def due_reminders(self, limit: int) -> list[dict[str, Any]]: ...
+    def push_subscriptions(self, user_ids: list[str]) -> list[dict[str, Any]]: ...
+    def delete_push_subscription(self, endpoint: str) -> None: ...
+    def mark_reminder_sent(self, reminder_id: str, channel: str) -> None: ...
 
 
 class SupabaseRepo:
@@ -104,11 +110,40 @@ class SupabaseRepo:
             },
         )
 
-    def link_vendor(self, bill_id: str) -> str | None:
-        """Vendor auto-linking + duplicate flag, done in SQL (link_bill_vendor)."""
-        r = self.http.post("/rest/v1/rpc/link_bill_vendor", json={"p_bill": bill_id})
+    def _rpc(self, fn: str, args: dict[str, Any]) -> Any:
+        r = self.http.post(f"/rest/v1/rpc/{fn}", json=args)
         r.raise_for_status()
-        return r.json()
+        return r.json() if r.content else None
+
+    def after_saved(self, bill_id: str) -> None:
+        """Vendor link, duplicate flag, exchange default, ledger and reminders (SQL)."""
+        self._rpc("after_bill_saved", {"p_bill": bill_id})
+
+    def set_exchange_days(self, bill_id: str, days: int) -> None:
+        self._rpc("set_vendor_exchange_days", {"p_bill": bill_id, "p_days": days})
+
+    def due_reminders(self, limit: int) -> list[dict[str, Any]]:
+        return self._rpc("due_reminders", {"p_limit": limit}) or []
+
+    def push_subscriptions(self, user_ids: list[str]) -> list[dict[str, Any]]:
+        if not user_ids:
+            return []
+        return self._select(
+            "push_subscriptions",
+            {"user_id": f"in.({','.join(user_ids)})", "select": "endpoint,keys"},
+        )
+
+    def delete_push_subscription(self, endpoint: str) -> None:
+        self.http.delete("/rest/v1/push_subscriptions", params={"endpoint": f"eq.{endpoint}"})
+
+    def mark_reminder_sent(self, reminder_id: str, channel: str) -> None:
+        r = self.http.patch(
+            "/rest/v1/reminders",
+            params={"id": f"eq.{reminder_id}"},
+            json={"sent_at": datetime.now(UTC).isoformat(), "channel": channel},
+            headers={"Prefer": "return=minimal"},
+        )
+        r.raise_for_status()
 
     # Storage -------------------------------------------------------------
     def download(self, path: str) -> bytes:
