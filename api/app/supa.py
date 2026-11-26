@@ -13,6 +13,15 @@ from app.config import get_settings
 BUCKET = "bills"
 
 
+def service_headers(key: str) -> dict[str, str]:
+    """New secret keys (sb_secret_...) are not JWTs and must only go in `apikey`;
+    the gateway then injects a service_role JWT. Legacy service_role JWTs also go in
+    Authorization."""
+    if key.startswith("sb_"):
+        return {"apikey": key}
+    return {"apikey": key, "Authorization": f"Bearer {key}"}
+
+
 class Repo(Protocol):
     def get_bill(self, bill_id: str) -> dict[str, Any] | None: ...
     def is_member(self, household_id: str, user_id: str) -> bool: ...
@@ -29,10 +38,9 @@ class SupabaseRepo:
         s = get_settings()
         if not (s.supabase_url and s.supabase_service_role_key):
             raise RuntimeError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required")
-        key = s.supabase_service_role_key
         self.http = http or httpx.Client(
             base_url=s.supabase_url.rstrip("/"),
-            headers={"apikey": key, "Authorization": f"Bearer {key}"},
+            headers=service_headers(s.supabase_service_role_key),
             timeout=30,
         )
 

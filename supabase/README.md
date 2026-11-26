@@ -27,7 +27,7 @@
 |---|---|---|
 | Project URL | `web/.env` `VITE_SUPABASE_URL`, `api/.env` `SUPABASE_URL` | |
 | Publishable / anon key | `web/.env` `VITE_SUPABASE_ANON_KEY` | Safe in the browser; RLS protects data |
-| **Service role / secret key** | `api/.env` `SUPABASE_SERVICE_ROLE_KEY` **only** | Bypasses RLS. Never in the PWA, never in git |
+| **Secret key** (`sb_secret_…`, tab *Publishable and secret API keys*) | `SUPABASE_SERVICE_ROLE_KEY` on the API only | Bypasses RLS. Never in the PWA, never in git. Legacy `service_role` JWTs also work but stop at the end of 2026 |
 | JWT secret (legacy projects only) | `api/.env` `SUPABASE_JWT_SECRET` | New projects use asymmetric signing keys → leave empty, the API reads JWKS |
 
 ## Storage
