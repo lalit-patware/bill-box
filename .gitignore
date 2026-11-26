@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Local data
+api/.data/
+api/eval/reports/
+
+# Real bill photos stay local (personal data). Only *.expected.json + README are committed.
+api/tests/fixtures/bills/**/*.jpg
+api/tests/fixtures/bills/**/*.jpeg
+api/tests/fixtures/bills/**/*.png
+api/tests/fixtures/bills/**/*.webp
+api/tests/fixtures/bills/**/*.heic
+api/tests/fixtures/bills/**/*.pdf
+
+# Node (Phase 2)
+node_modules/
+dist/
+
+# OS
+.DS_Store

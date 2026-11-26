@@ -1,0 +1,9 @@
+{
+  "bill_kind": "laundry",
+  "vendor_name": "Shree Dhobi Ghat",
+  "bill_no": "4417",
+  "bill_date": "2026-11-03",
+  "piece_count": 12,
+  "total": 240,
+  "is_handwritten": true
+}
