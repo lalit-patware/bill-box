@@ -1,0 +1,32 @@
+# Render Blueprint: New → Blueprint → pick this repo.
+# Secrets marked `sync: false` are asked for once in the Render dashboard (never committed).
+services:
+  - type: web
+    name: billbox-api
+    runtime: python
+    region: singapore # closest Render region to India
+    plan: free # cold starts after ~15 min idle; switch to "starter" before launch
+    rootDir: api
+    buildCommand: pip install .
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: ANTHROPIC_MODEL
+        value: claude-haiku-5-5
+      - key: SUPABASE_URL
+        value: https://smwwswtjetnlmdbsnsoh.supabase.co
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: CRON_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false # e.g. https://bill-box.vercel.app
+      - key: LANGFUSE_PUBLIC_KEY
+        sync: false
+      - key: LANGFUSE_SECRET_KEY
+        sync: false
