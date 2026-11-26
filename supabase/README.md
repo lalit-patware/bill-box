@@ -3,8 +3,11 @@
 ## 1. Create the project
 
 1. Create a project at supabase.com (region: **Mumbai, ap-south-1**).
-2. Run the migration: **SQL Editor** → paste `migrations/20261126000001_init.sql` → Run.
-   Or with the CLI: `supabase link --project-ref <ref> && supabase db push`.
+2. Run every file in `migrations/` **in order** (SQL Editor → paste → Run), or with the CLI:
+   `supabase link --project-ref <ref> && supabase db push`.
+   - `…01_init.sql`: tables, RLS, signup trigger, private `bills` bucket
+   - `…02_hardening.sql`: advisor fixes (helper functions moved to a non-exposed `private` schema, `pg_trgm` → `extensions`, `(select auth.uid())` in policies, FK indexes)
+   - `…03_batch_poll_cron.sql`: pg_cron job every 5 min → API `/bills/jobs/poll-batches` (needs Vault secrets `api_url`, `cron_secret`)
 3. Check RLS isolation (local CLI stack or a scratch project):
    `psql "$DB_URL" -f tests/rls_test.sql` → should print `RLS isolation OK`.
 
@@ -30,3 +33,12 @@
 ## Storage
 
 The migration creates a **private** bucket `bills` (5 MB/file, JPEG/PNG/WebP/PDF). Object path: `<household_id>/<bill_id>/<page>.jpg`. Storage policies allow access only to members of that household.
+
+## Current project
+
+| Item | Value |
+|---|---|
+| Project | `bill-box`, ref `smwwswtjetnlmdbsnsoh`, region ap-south-1 (Mumbai) |
+| Migrations applied | `init`, `hardening` (26 Nov 2026) |
+| RLS isolation test | Passed |
+| Security advisor | Clean except `public.rls_auto_enable()`, which Supabase creates for the "Enable RLS on new tables automatically" setting (not ours) |

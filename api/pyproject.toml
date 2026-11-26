@@ -18,6 +18,9 @@ dependencies = [
 dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.6"]
 tracing = ["langfuse>=2.50"]
 
+[tool.vercel]
+entrypoint = "app.main:app"
+
 [build-system]
 requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"
