@@ -141,6 +141,4 @@ Row Level Security: every table scoped by `household_id` through `members`.
 
 ## Build milestones
 
-| Week | Goal |
-|---|---|
 See **PLAN.md** for the phased execution plan (Phase 0 go/no-go → Phase 6 launch), done-criteria and per-phase prompts.
