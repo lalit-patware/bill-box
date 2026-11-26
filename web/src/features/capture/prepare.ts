@@ -1,5 +1,6 @@
 /** Turn picked files into queue entries: preprocess, read codes, decide live vs batch. */
 import type { QueuedBill, Source } from '../../lib/db';
+import { dhash } from '../../lib/dhash';
 import { checkBlur } from './blur';
 import { buildHints, readCodes } from './codes';
 import { decodeImage, isPdf, MAX_UPLOAD_BYTES, toUploadJpeg } from './preprocess';
@@ -50,12 +51,21 @@ export async function prepareFiles(
         return { bills: [], blurry: true, skipped: [] };
       }
       const hints = buildHints(await readCodes(bitmap, file));
+      const imageHash = safeHash(bitmap);
       const jpeg = await toUploadJpeg(bitmap);
       bitmap.close();
-      outcome.bills.push({ pages: [jpeg], source, mode, hints });
+      outcome.bills.push({ pages: [jpeg], source, mode, hints, imageHash });
     } catch {
       outcome.skipped.push(file.name); // HEIC on some browsers, corrupt files
     }
   }
   return outcome;
+}
+
+function safeHash(bitmap: ImageBitmap): string | null {
+  try {
+    return dhash(bitmap);
+  } catch {
+    return null; // hashing is a nice-to-have; never block saving a bill
+  }
 }

@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 
 import { brand } from '../../config/brand';
 import { toggleLanguage } from '../../i18n';
@@ -66,6 +67,17 @@ export function Login() {
       <button onClick={toggleLanguage} className="min-h-11 text-sm text-slate-500 underline">
         {t('language')}
       </button>
+
+      <p className="text-center text-xs text-slate-500">
+        {t('agree')}{' '}
+        <Link to="/terms" className="underline">
+          {t('terms')}
+        </Link>{' '}
+        ·{' '}
+        <Link to="/privacy" className="underline">
+          {t('privacy')}
+        </Link>
+      </p>
     </main>
   );
 }

@@ -32,6 +32,7 @@ class Repo(Protocol):
     ) -> None: ...
     def processing_batches(self) -> dict[str, list[str]]: ...
     def ai_pending_bills(self, limit: int) -> list[dict[str, Any]]: ...
+    def link_vendor(self, bill_id: str) -> str | None: ...
 
 
 class SupabaseRepo:
@@ -102,6 +103,12 @@ class SupabaseRepo:
                 "limit": str(limit),
             },
         )
+
+    def link_vendor(self, bill_id: str) -> str | None:
+        """Vendor auto-linking + duplicate flag, done in SQL (link_bill_vendor)."""
+        r = self.http.post("/rest/v1/rpc/link_bill_vendor", json={"p_bill": bill_id})
+        r.raise_for_status()
+        return r.json()
 
     # Storage -------------------------------------------------------------
     def download(self, path: str) -> bytes:

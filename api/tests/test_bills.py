@@ -38,6 +38,8 @@ class FakeRepo:
         }
         self.members = {(HH, "user-a")}
         self.items: dict[str, list] = {}
+        self.linked: list[str] = []
+        self.link_fails = False
         self.products: dict[str, list] = {}
 
     def get_bill(self, bill_id: str) -> dict[str, Any] | None:
@@ -54,6 +56,12 @@ class FakeRepo:
 
     def replace_children(self, bill_id: str, items: list, products: list) -> None:
         self.items[bill_id], self.products[bill_id] = items, products
+
+    def link_vendor(self, bill_id: str) -> str | None:
+        self.linked.append(bill_id)
+        if self.link_fails:
+            raise RuntimeError("rpc down")
+        return "vendor-1"
 
     def ai_pending_bills(self, limit: int) -> list[dict[str, Any]]:
         return [b for b in self.bills.values() if b.get("ai_pending")][:limit]
@@ -211,3 +219,22 @@ def test_add_months_clamps() -> None:
 
     assert _add_months(date(2026, 1, 31), 1) == date(2026, 2, 28)
     assert _add_months(date(2026, 11, 15), 24) == date(2028, 11, 15)
+
+
+def test_vendor_linked_after_ai_and_qr_fallback(env) -> None:
+    c, repo, fake = env
+    c.post("/bills/b1/extract")
+    assert repo.linked == ["b1"]
+    app.dependency_overrides[optional_client_dep] = lambda: None
+    c.post("/bills/g1/extract")  # fallback with UPI vendor name → linked
+    assert repo.linked == ["b1", "g1"]
+    c.post("/bills/b1/extract")  # fallback without any vendor → not linked
+    assert repo.linked == ["b1", "g1"]
+
+
+def test_link_failure_does_not_fail_save(env) -> None:
+    c, repo, _ = env
+    repo.link_fails = True
+    assert c.post("/bills/b1/extract").status_code == 200
+    assert repo.bills["b1"]["status"] == "done"
+    assert repo.bills["b1"]["confirmed_at"] is None

@@ -65,7 +65,7 @@
 | 2.8 | **Web Share Target** in manifest + SW handler (images, PDF, text) | Share from WhatsApp → bill saved |
 | 2.9 | Offline queue (Dexie): captures while offline upload when back online | Airplane-mode test passes |
 
-## Phase 3 — Vault & result UX (Week 3)
+## Phase 3 — Vault & result UX (Week 3) ✅ shipped
 
 | # | Task | Done when |
 |---|---|---|
@@ -100,6 +100,8 @@
 | 5.4 | First-run "Import old bills from gallery" → batch path | 30 photos imported overnight |
 
 ## Phase 6 — Hardening & launch (Week 6)
+
+> Before launch: publish the Google OAuth app (Google Auth Platform → Branding: add homepage `https://<domain>/`, privacy `/privacy`, terms `/terms`; then Audience → Publish). Until then only listed test users can use Google sign-in.
 
 | # | Task | Done when |
 |---|---|---|
