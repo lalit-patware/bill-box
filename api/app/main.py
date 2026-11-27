@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import bills, extraction
+from app.routers import bills, extraction, payments
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
@@ -17,6 +17,7 @@ app.add_middleware(
 )
 app.include_router(bills.router)
 app.include_router(extraction.router)
+app.include_router(payments.router)
 
 
 @app.get("/health")

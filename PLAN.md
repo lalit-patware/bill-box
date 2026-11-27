@@ -77,7 +77,7 @@
 | 3.6 | Search: Postgres FTS + pg_trgm over vendor, items, notes; month/kind keywords ("milk october") | 10 sample queries return correct bills |
 | 3.7 | Bill detail: zoomable original image, extracted fields, delete | Works offline from cache |
 
-## Phase 4 — Smart actions (Week 4)
+## Phase 4 — Smart actions (Week 4) ✅ shipped
 
 | # | Task | Done when |
 |---|---|---|
@@ -90,7 +90,7 @@
 | 4.7 | Claim helper + **Claim pack** PDF (all pages of a hospital visit / warranty bill) | PDF downloads correctly |
 | 4.8 | Medical: consent screen on first medical bill; never extract medicines/doses | Consent stored, prompt verified |
 
-## Phase 5 — Monetization & family (Week 5)
+## Phase 5 — Monetization & family (Week 5) ✅ built (payments live once Razorpay keys are set)
 
 | # | Task | Done when |
 |---|---|---|
@@ -116,6 +116,10 @@
 | 6.9 | Public launch: WhatsApp groups, r/india, r/developersIndia, Product Hunt, LinkedIn | — |
 
 ---
+
+## Later: phone login (decided 26 Nov 2026: free for now)
+
+Login stays Google + email magic link (₹0). When users ask for phone login, add it via the Supabase **Send SMS hook** → our API → **MSG91 WhatsApp OTP** (~₹0.10/OTP; needs an MSG91 account + WhatsApp Business number). Fallback: MSG91 SMS (~₹0.15/OTP + DLT registration).
 
 ## Metrics to track from day 1
 

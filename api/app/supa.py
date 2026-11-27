@@ -39,6 +39,10 @@ class Repo(Protocol):
     def push_subscriptions(self, user_ids: list[str]) -> list[dict[str, Any]]: ...
     def delete_push_subscription(self, endpoint: str) -> None: ...
     def mark_reminder_sent(self, reminder_id: str, channel: str) -> None: ...
+    def charge_scan(self, bill_id: str) -> str: ...
+    def create_payment(self, row: dict[str, Any]) -> None: ...
+    def get_payment(self, order_id: str) -> dict[str, Any] | None: ...
+    def apply_payment(self, order_id: str, payment_id: str) -> bool: ...
 
 
 class SupabaseRepo:
@@ -105,7 +109,8 @@ class SupabaseRepo:
             {
                 "ai_pending": "is.true",
                 "select": "id,household_id,page_paths,hints",
-                "order": "created_at.asc",
+                # Bills waiting for scans go last so they never starve the others.
+                "order": "quota_blocked.asc,created_at.asc",
                 "limit": str(limit),
             },
         )
@@ -135,6 +140,21 @@ class SupabaseRepo:
 
     def delete_push_subscription(self, endpoint: str) -> None:
         self.http.delete("/rest/v1/push_subscriptions", params={"endpoint": f"eq.{endpoint}"})
+
+    def charge_scan(self, bill_id: str) -> str:
+        """'free' | 'credit' | 'already' | 'none' (out of scans). Once per bill."""
+        return str(self._rpc("charge_scan", {"p_bill": bill_id}))
+
+    def create_payment(self, row: dict[str, Any]) -> None:
+        r = self.http.post("/rest/v1/payments", json=row, headers={"Prefer": "return=minimal"})
+        r.raise_for_status()
+
+    def get_payment(self, order_id: str) -> dict[str, Any] | None:
+        rows = self._select("payments", {"razorpay_order_id": f"eq.{order_id}", "select": "*"})
+        return rows[0] if rows else None
+
+    def apply_payment(self, order_id: str, payment_id: str) -> bool:
+        return bool(self._rpc("apply_payment", {"p_order": order_id, "p_payment": payment_id}))
 
     def mark_reminder_sent(self, reminder_id: str, channel: str) -> None:
         r = self.http.patch(

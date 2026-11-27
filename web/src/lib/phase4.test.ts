@@ -108,3 +108,39 @@ describe('push', () => {
     expect(Array.from(urlBase64ToUint8Array('AQID-_8'))).toEqual([1, 2, 3, 251, 255]);
   });
 });
+
+describe('quota (phase 5)', async () => {
+  const { istMonth, quotaView, rupees } = await import('../features/plan/quota');
+  const base = {
+    id: 'h',
+    name: 'Home',
+    plan: 'free' as const,
+    plan_until: null,
+    scan_credits: 0,
+    free_used: 5,
+    free_month: '2026-11-01',
+    owner_id: 'u',
+  };
+  const now = new Date('2026-11-26T18:00:00Z');
+
+  it('IST month rolls over at midnight India time', () => {
+    expect(istMonth(new Date('2026-11-30T19:00:00Z'))).toBe('2026-12-01');
+    expect(istMonth(new Date('2026-11-30T18:00:00Z'))).toBe('2026-11-01');
+  });
+
+  it('free scans reset next month; credits add up', () => {
+    expect(quotaView(base, 5, now).total).toBe(0);
+    expect(quotaView(base, 5, new Date('2026-12-02T00:00:00Z')).freeLeft).toBe(5);
+    expect(quotaView({ ...base, scan_credits: 25 }, 5, now).total).toBe(25);
+  });
+
+  it('family plan raises member limit while active', () => {
+    const fam = { ...base, plan: 'family' as const, plan_until: '2027-11-26T00:00:00Z' };
+    expect(quotaView(fam, 5, now).memberLimit).toBe(6);
+    expect(quotaView({ ...fam, plan_until: '2026-01-01T00:00:00Z' }, 5, now).memberLimit).toBe(2);
+  });
+
+  it('rupees', () => {
+    expect(rupees(9900)).toBe('₹99');
+  });
+});

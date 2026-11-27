@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     resend_from: str = ""
     app_url: str = "https://bill-box-web.vercel.app"
 
+    # Razorpay (Phase 5). Empty = payments off; free scans still work.
+    razorpay_key_id: str = ""
+    razorpay_key_secret: str = ""
+    razorpay_webhook_secret: str = ""
+
     # Shared secret for cron-triggered job endpoints (X-Cron-Secret header).
     cron_secret: str = ""
     # Comma-separated origins allowed to call the API from a browser.
